@@ -1,3 +1,5 @@
+import logging
+
 from lib_controllllite.lib_controllllite import LLLiteLoader
 from lib_controllllite.lib_controllllite_anima import (
     ControlNetLLLiteDiT,
@@ -7,6 +9,9 @@ from lib_controllllite.lib_controllllite_anima import (
 
 from modules_forge.shared import add_supported_control_model
 from modules_forge.supported_controlnet import ControlModelPatcher
+
+
+logger = logging.getLogger("ControlNet")
 
 
 class ControlLLLiteAnimaPatcher(ControlModelPatcher):
@@ -28,9 +33,14 @@ class ControlLLLiteAnimaPatcher(ControlModelPatcher):
         if self._lllite_net is None:
             dit = unet.model.diffusion_model
             cfg = infer_anima_config(self.state_dict)
-            self._lllite_net = ControlNetLLLiteDiT(dit, **cfg)
-            load_lllite_weights_from_dict(self._lllite_net, self.state_dict)
-            self._lllite_net = self._lllite_net.eval().to(device=device, dtype=dtype)
+            try:
+                self._lllite_net = ControlNetLLLiteDiT(dit, **cfg)
+                load_lllite_weights_from_dict(self._lllite_net, self.state_dict)
+                self._lllite_net = self._lllite_net.eval().to(device=device, dtype=dtype)
+            except Exception:
+                self._lllite_net = None
+                logger.exception(f"Failed to load Control-LLLite (Anima) with inferred config: {cfg}")
+                raise
 
         cond_image = cond * 2.0 - 1.0
         self._lllite_net.set_cond_image(cond_image.to(device=device, dtype=dtype))
@@ -46,6 +56,8 @@ class ControlLLLiteAnimaPatcher(ControlModelPatcher):
 class ControlLLLitePatcher(ControlModelPatcher):
     @staticmethod
     def try_build_from_state_dict(state_dict, ckpt_path):
+        if any(k.startswith("lllite_dit") for k in state_dict):
+            return None
         if not any(k.startswith("lllite") for k in state_dict):
             return None
         return ControlLLLitePatcher(state_dict)

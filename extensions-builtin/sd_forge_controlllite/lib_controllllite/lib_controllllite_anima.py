@@ -264,6 +264,12 @@ class ControlNetLLLiteDiT(nn.Module):
             m.layer_idx = i
             m._depth_embeds_ref = [self.depth_embeds]
 
+        if n == 0:
+            raise RuntimeError(
+                f"Control-LLLite (Anima) found no target modules for layers {', '.join(atomics)}. "
+                f"Verify that the active checkpoint is Anima and matches the LLLite weight architecture."
+            )
+
         logger.info(f"Loaded Control-LLLite (Anima) ({n} modules)")
 
     @staticmethod
@@ -340,9 +346,14 @@ class ControlNetLLLiteDiT(nn.Module):
             m.apply_to()
 
     def restore(self):
-        for m in self.lllite_modules:
-            m.restore()
-        self.set_cond_image(None)
+        try:
+            for m in self.lllite_modules:
+                try:
+                    m.restore()
+                except Exception:
+                    logger.exception(f"Failed to restore Control-LLLite (Anima) module {m.lllite_name}")
+        finally:
+            self.set_cond_image(None)
 
 
 # region Weight Loading (v2)
