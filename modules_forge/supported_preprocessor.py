@@ -93,8 +93,22 @@ class PreprocessorCanny(Preprocessor):
         return remove_pad(canny_image)
 
 
+class PreprocessorColorToGray(Preprocessor):
+    def __init__(self):
+        super().__init__()
+        self.name = "color_to_gray"
+        self.tags = ["Canny", "Lineart", "Scribble", "Sketch", "MLSD"]
+        self.sorting_priority = 5
+
+    def __call__(self, input_image, resolution, slider_1=None, slider_2=None, slider_3=None, **kwargs):
+        input_image, remove_pad = resize_image_with_pad(input_image, resolution)
+        gray = cv2.cvtColor(input_image, cv2.COLOR_RGB2GRAY)
+        return remove_pad(cv2.cvtColor(gray, cv2.COLOR_GRAY2RGB))
+
+
 add_supported_preprocessor(PreprocessorNone())
 add_supported_preprocessor(PreprocessorCanny())
+add_supported_preprocessor(PreprocessorColorToGray())
 
 
 class PreprocessorClipVision(Preprocessor):
